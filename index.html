@@ -3,447 +3,386 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>车载低音单元仿真分析引擎 V4.2</title>
+    <title>车载低音单元与门板适配分析系统</title>
+    <!-- 引入 html2canvas 1.4.1 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { 
-            --safe: #27ae60; --warn: #f39c12; --danger: #c0392b; 
-            --neutral: #2980b9; --info: #8e44ad; --card-bg: #1e272e;
-            --panel-bg: #2c3e50; --text: #ecf0f1; --border: #485460; --text-sub: #d2dae2;
+            --pass: #27ae60; --warn: #f39c12; --danger: #c0392b; 
+            --neutral: #34495e; --card-bg: #111418;
+            --panel-bg: #1a1e23; --text: #ecf0f1; --border: #2c3540; --text-sub: #8b9bb4;
+            --highlight: #3498db;
+            
+            /* 为截图预备的不透明纯色背景替换值 */
+            --bg-pass-solid: #15291d; 
+            --bg-warn-solid: #2e2411;
+            --bg-danger-solid: #291715;
+            --bg-info-solid: #112331;
         }
-        body { font-family: 'Segoe UI', 'Roboto', sans-serif; background: #0f1419; color: var(--text); padding: 20px; line-height: 1.5; font-size: 14px; }
-        .capture-wrapper { background: #0f1419; padding: 10px; border-radius: 8px; width: 100%; max-width: 850px; margin: auto; }
-        .card { background: var(--card-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #080a0c; color: var(--text); padding: 20px; line-height: 1.6; font-size: 14px; margin: 0;}
+        .capture-wrapper { background: #080a0c; padding: 10px; border-radius: 4px; width: 100%; max-width: 900px; margin: auto; }
+        .card { background: var(--card-bg); padding: 35px; border-radius: 6px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
         
-        h2 { text-align:center; margin-top:0; color: var(--text); font-weight: 600; font-size: 1.5rem; letter-spacing: 1px; margin-bottom: 5px;}
+        h2 { text-align:center; margin-top:0; color: #fff; font-weight: 600; font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: var(--text-sub); font-size: 0.85rem; margin-bottom: 30px; letter-spacing: 1px; }
         
-        .algo-header { text-align: center; position: relative; margin-bottom: 30px; }
-        .algo-title { font-size: 0.8rem; color: #f1c40f; display: inline-block; padding: 4px 12px; border: 1px solid #f1c40f; border-radius: 20px; cursor: help; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s; }
-        .algo-title:hover { background: rgba(241, 196, 15, 0.1); }
-        .algo-tooltip { visibility: hidden; opacity: 0; width: 380px; background: #0b0f13; color: #cbd5e1; text-align: left; border-radius: 6px; padding: 15px; position: absolute; z-index: 10; top: 120%; left: 50%; transform: translateX(-50%); border: 1px solid #34495e; box-shadow: 0 10px 30px rgba(0,0,0,0.8); transition: opacity 0.3s, visibility 0.3s; font-size: 0.8rem; line-height: 1.6; }
-        .algo-header:hover .algo-tooltip { visibility: visible; opacity: 1; }
-        .math-line { background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; color: #3498db; margin: 8px 0; font-weight: bold; border-left: 3px solid #3498db; letter-spacing: 0.5px;}
-        .algo-tooltip h5 { margin: 0 0 10px 0; color: #fff; font-size: 0.95rem; border-bottom: 1px solid #333; padding-bottom: 8px;}
+        .algo-header { background: rgba(52, 152, 219, 0.05); border: 1px solid rgba(52, 152, 219, 0.2); padding: 15px 20px; border-radius: 4px; margin-bottom: 30px; font-size: 0.85rem;}
+        .algo-header strong { color: var(--highlight); }
 
-        .section-title { color: var(--warn); font-size: 0.85rem; font-weight: 700; border-bottom: 1px solid var(--border); margin: 25px 0 15px 0; padding-bottom: 5px; }
-        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .section-title { color: #fff; font-size: 1rem; font-weight: 600; border-bottom: 1px solid var(--border); margin: 30px 0 15px 0; padding-bottom: 8px; letter-spacing: 1px; display: flex; align-items: center;}
+        .section-title::before { content: ''; display: inline-block; width: 4px; height: 14px; background: var(--highlight); margin-right: 10px; border-radius: 2px; }
+        
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .input-group { position: relative; }
-        label { display: block; font-size: 0.8rem; color: var(--text-sub); margin-bottom: 6px; font-weight: 500; }
-        input, select { width: 100%; padding: 10px; background: var(--panel-bg); border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; }
-        input:focus, select:focus { border-color: var(--warn); outline: none; background: #3d566e; }
+        label { display: block; font-size: 0.8rem; color: var(--text-sub); margin-bottom: 6px; font-weight: 600; }
+        .label-opt { color: #5a6b80; font-weight: normal; font-size: 0.75rem;}
+        input, select { width: 100%; padding: 12px; background: #0c0f12; border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; font-family: 'Consolas', monospace;}
+        input:focus, select:focus { border-color: var(--highlight); outline: none; background: #11151a;}
         
-        .radio-group { display: flex; gap: 15px; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; border: 1px solid var(--border); }
-        .radio-label { display: flex; align-items: center; font-size: 0.85rem; cursor: pointer; color: #fff; font-weight: bold;}
-        .radio-label input { width: auto; margin-right: 8px; }
+        .sys-toggle { grid-column: 1 / -1; background: rgba(142, 68, 173, 0.1); border: 1px solid rgba(142, 68, 173, 0.3); padding: 15px; border-radius: 4px; }
+        .sys-toggle select { border-color: rgba(142, 68, 173, 0.5); font-weight: bold; color: #d7bde2;}
 
-        .tutorial-box { background: rgba(41, 128, 185, 0.1); border-left: 4px solid var(--neutral); padding: 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.85rem; color: #cbd5e1; line-height: 1.6;}
+        .btn-group { display: flex; gap: 15px; margin-top: 35px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 1rem; letter-spacing: 1px; transition: all 0.2s; }
+        .btn-calc { background: var(--highlight); color: white; }
+        .btn-calc:hover { background: #2980b9; }
+        .btn-share { background: transparent; color: var(--text-sub); border: 1px solid var(--border); display: none; }
+        .btn-share:hover { background: rgba(255,255,255,0.05); color: #fff; }
         
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 30px; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
-        .btn-calc { background: var(--neutral); color: white; }
-        .btn-calc:hover { background: #1f6391; }
-        .btn-share { background: var(--safe); color: white; display: none; }
-        
-        .res { margin-top: 30px; display: none; border-top: 1px solid var(--border); padding-top: 20px; }
-        .section { background: var(--panel-bg); padding: 20px; border-radius: 6px; margin-bottom: 18px; border-left: 5px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
-        .status-safe { border-left-color: var(--safe); }
-        .status-warn { border-left-color: var(--warn); }
-        .status-danger { border-left-color: var(--danger); }
-        
-        h4 { margin: 0 0 15px 0; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 8px; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; }
-        .tag { font-size: 0.7rem; padding: 3px 8px; background: rgba(0,0,0,0.3); color: var(--text-sub); border: 1px solid var(--border); border-radius: 3px; font-weight: normal;}
-        
-        .data-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-        .main-val { font-size: 1.8rem; font-weight: 700; line-height: 1; }
-        .sub-data { text-align: right; font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; }
-        
-        .intent-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .intent-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 4px; border: 1px dashed #555; }
-        .intent-title { color: #f1c40f; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; text-transform: uppercase;}
-        .intent-desc { font-size: 0.85rem; color: #ddd; line-height: 1.4;}
+        .res { margin-top: 35px; display: none; animation: fadeIn 0.5s ease;}
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .dual-advice { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
-        .da-card { background: rgba(0,0,0,0.25); padding: 15px; border-radius: 6px; border: 1px solid var(--border); border-top: 3px solid var(--neutral);}
-        .da-title { font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px; font-weight: bold; }
-        .da-val { font-size: 1.3rem; font-weight: bold; color: #fff; }
-        .da-desc { font-size: 0.85rem; color: #a4b0be; margin-top: 10px; line-height: 1.6; }
+        .score-panel { display: flex; gap: 30px; align-items: center; background: #0c0f12; border: 1px solid var(--border); padding: 25px; border-radius: 4px; margin-bottom: 25px;}
+        .score-val { font-size: 3.5rem; font-weight: 700; font-family: 'Consolas', monospace; line-height: 1; width: 100px; text-align: center;}
+        .score-desc-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px;}
+        .score-desc-text { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6;}
+
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;}
+        .data-box { background: var(--panel-bg); padding: 15px; border-radius: 4px; border: 1px solid var(--border); position: relative; overflow: hidden;}
+        .data-label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 5px; font-weight: 600;}
+        .data-value { font-size: 1.5rem; font-family: 'Consolas', monospace; color: #fff; font-weight: 600;}
+        .data-unit { font-size: 0.85rem; color: var(--text-sub); }
+        .data-subtext { font-size: 0.7rem; color: #55606e; margin-top: 4px; display: block;}
+
+        .diag-list { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 4px; padding: 20px; }
+        .diag-item { display: flex; align-items: flex-start; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed var(--border); transition: background 0s;}
+        .diag-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .d-icon { padding: 3px 8px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-right: 15px; white-space: nowrap; font-family: 'Consolas', monospace; }
+        .d-text { font-size: 0.85rem; color: #d1d8e0; line-height: 1.6; }
+        .d-text strong { color: #fff; }
         
-        .final-verdict { background: rgba(0,0,0,0.3); border: 1px solid #555; padding: 18px; border-radius: 6px; margin-top: 15px; }
-        .verdict-item { margin-bottom: 12px; display: flex; align-items: flex-start; font-size: 0.9rem; line-height: 1.5; }
-        .verdict-item:last-child { margin-bottom: 0; }
-        .verdict-icon { margin-right: 10px; font-size: 1.2rem; flex-shrink: 0; }
-        
-        .watermark { text-align: center; color: #555; font-size: 0.75rem; margin-top: 25px; border-top: 1px solid #333; padding-top: 15px; display: none; font-weight: bold;}
+        .watermark { text-align: center; color: #555; font-size: 0.8rem; margin-top: 35px; font-family: 'Consolas', monospace; letter-spacing: 1px; display: none;}
     </style>
 </head>
 <body>
 
 <div id="capture-target" class="capture-wrapper">
     <div class="card">
-        <h2>车载低音单元仿真分析引擎</h2>
-        <div class="algo-header">
-            <span class="algo-title">物理推演模型: 客观 T/S 分析 & 非对称声学对齐</span>
-            <div class="algo-tooltip">
-                <h5>📐 核心物理与数学计算模型</h5>
-                基于客观电声学定律进行闭环推演：<br><br>
-                <b>1. 霍夫曼铁律 (Hofmann's Iron Law)</b><br>
-                扬声器的灵敏度(η₀)、谐振频率(Fs)与等效容积(Vas)存在绝对的物理制约，引擎据此校验参数真伪：
-                <div class="math-line">η₀ = k × V_as × F_s³</div>
-                <b>2. 动态装车阻尼估算 (Lossy Baffle)</b><br>
-                将车门视为带泄露因子的有限大障板，引入气密系数(L)推演装车后的真实阻尼(Qtc)：
-                <div class="math-line">Q_tc = Q_ts × √(1 + L × (V_as / V_b))</div>
-                <b>3. 非对称电声叠加理论 (Acoustic LR4)</b><br>
-                最终声学滚降 = 扬声器自然物理衰减 + DSP 电学网络。
-                <div class="math-line">Acoustic 24dB ≈ Natural 12dB + DSP HPF 12dB</div>
-            </div>
-        </div>
+        <h2>车载低音单元与门板适配分析系统</h2>
+        <div class="subtitle">Lossy Infinite Baffle (有损障板) 物理仿真引擎</div>
         
-        <!-- 模块 1：系统边界与配置 -->
-        <div class="section-title">1. 声学边界条件 & 音响系统配置</div>
+        <div class="algo-header">
+            <strong>核心物理声明：</strong> 车门环境并非密闭箱，而是带有声短路效应的“有损无限大障板 (Lossy IB)”。本引擎废弃密闭箱公式，采用 <code>Q_sys = Q_ts × √(1 + α × L_f)</code> 修正泄漏模型，并根据电声系统是否包含超低音，执行独立的物理交越评估。
+        </div>
+
+        <div class="section-title">1. 声学架构与边界条件</div>
         <div class="input-grid">
-            <div class="input-group">
-                <label>车型门板声学容积 (Vb)</label>
-                <select id="car_type">
-                    <option value="30">日韩系/A0级小车 (约 30L)</option>
-                    <option value="45" selected>紧凑/中级轿车 (约 45L)</option>
-                    <option value="60">中大型SUV (约 60L)</option>
-                    <option value="40">豪华车/高刚性门板 (约 40L)</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>门板隔音处理状态</label>
-                <select id="door_treat">
-                    <option value="0.4">原车无隔音 (显著漏气)</option>
-                    <option value="0.75" selected>标准双层止震板 (有限障板)</option>
-                    <option value="0.95">三层密封处理 (近似非理想密闭)</option>
-                    <option value="1.0">门板倒模独立密闭箱</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <label>是否配备超低音单元 (Subwoofer)？</label>
+            <div class="input-group sys-toggle">
+                <label>系统架构：是否包含独立的后备箱超低音单元 (Subwoofer)？</label>
                 <select id="has_sub">
-                    <option value="yes" selected>有独立超低音系统</option>
-                    <option value="no">无 (依赖前门输出极低频)</option>
+                    <option value="true" selected>【是】门板负责前场低频牵引 (通常HPF设定: 50-60Hz)</option>
+                    <option value="false">【否】门板需承担全频段低频重放 (无炮系统，极低频硬抗)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>门板声学容积 (V_b 估算)</label>
+                <select id="car_type">
+                    <option value="30">微型车/两厢车 (约 30 L)</option>
+                    <option value="40" selected>标准轿车/紧凑SUV (约 40 L)</option>
+                    <option value="55">中大型SUV/MPV (约 55 L)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>车门隔音耗散系数 (L_f)</label>
+                <select id="door_treat">
+                    <option value="0.2">无/简易隔音 (高度漏气 L_f=0.2)</option>
+                    <option value="0.5" selected>标准双层隔音 (中度耗散 L_f=0.5)</option>
+                    <option value="0.8">硬性材料极限封堵 (轻度漏气 L_f=0.8)</option>
                 </select>
             </div>
         </div>
 
-        <!-- 模块 2：参数输入 -->
-        <div class="section-title">2. 扬声器参数输入</div>
-        <div class="radio-group">
-            <label class="radio-label">
-                <input type="radio" name="param_mode" value="ts_known" checked onchange="toggleParamMode()"> 已知准确 T/S 参数
-            </label>
-            <label class="radio-label">
-                <input type="radio" name="param_mode" value="ts_unknown" onchange="toggleParamMode()"> 无 T/S 参数 (分析推演)
-            </label>
-        </div>
-
-        <!-- 状态 A：已知 T/S -->
-        <div id="panel_known" style="display: block;">
-            <div class="input-grid">
-                <div><label>Fs 谐振频率 (Hz)</label><input type="number" id="ts_fs" value="49"></div>
-                <div><label>Qts 总品质因数</label><input type="number" id="ts_qts" value="0.9" step="0.01"></div>
-                <div><label>Vas 等效容积 (L)</label><input type="number" id="ts_vas" value="30"></div>
-            </div>
-        </div>
-
-        <!-- 状态 B/C：未知 T/S -->
-        <div id="panel_unknown" style="display: none;">
-            <div class="radio-group" style="background: transparent; padding: 0; border: none;">
-                <label class="radio-label">
-                    <input type="radio" name="unknown_submode" value="autotest" checked onchange="toggleSubMode()"> 实测数据 (首选)
-                </label>
-                <label class="radio-label">
-                    <input type="radio" name="unknown_submode" value="deduce" onchange="toggleSubMode()"> 标称参数结合推演
-                </label>
-            </div>
-
-            <!-- 状态 B：实测数据 -->
-            <div id="panel_autotest" style="display: block;">
-                <div class="tutorial-box">
-                    🛠️ <b>万用表 Fs 简易测定法：</b><br>
-                    将万用表调至交流电压档(ACV)并联喇叭正负极。手机连接功放播放 20Hz-100Hz 慢速扫频。观察万用表，<b>交流电压读数冲到最高峰值那一瞬间所对应的频率，即为该喇叭真实的 Fs</b>。
-                </div>
-                <div class="input-grid">
-                    <div><label>实测出峰值电压时的频率 Fs (Hz)</label><input type="number" id="test_fs" placeholder="如: 65"></div>
-                    <div><label>手指按压纸盆的物理阻力</label>
-                        <select id="test_suspension">
-                            <option value="stiff">偏硬 (回弹迅速，高灵敏取向)</option>
-                            <option value="mid" selected>适中</option>
-                            <option value="soft">偏软 (容易按压，深潜取向)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 状态 C：参数结合推演 -->
-            <div id="panel_deduce" style="display: none;">
-                <div class="tutorial-box">
-                    利用《霍夫曼铁律》(Hofmann's Iron Law)，通过扬声器标称的灵敏度与下潜频率进行交叉比对，可科学锁定扬声器的真实物理架构。
-                </div>
-                <div class="input-grid">
-                    <div><label>标称频响下限 (Hz)</label><input type="number" id="deduce_freq" placeholder="如: 45"></div>
-                    <div><label>标称灵敏度 (dB/1W/1m)</label><input type="number" id="deduce_sens" placeholder="如: 89"></div>
-                    <div><label>手指按压纸盆的物理阻力</label>
-                        <select id="deduce_suspension">
-                            <option value="stiff">偏硬</option>
-                            <option value="mid" selected>适中</option>
-                            <option value="soft">偏软</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+        <div class="section-title">2. 扬声器机电参数 (T/S Parameters)</div>
+        <div class="input-grid">
+            <div class="input-group"><label>F_s 谐振频率 (Hz)</label><input type="number" id="ts_fs" placeholder="例: 55"></div>
+            <div class="input-group"><label>Q_es 电气品质因数</label><input type="number" id="ts_qes" placeholder="例: 0.65" step="0.01"></div>
+            <div class="input-group"><label>Q_ms 机械品质因数</label><input type="number" id="ts_qms" placeholder="例: 4.50" step="0.01"></div>
+            <div class="input-group"><label>V_as 等效容积 (升)</label><input type="number" id="ts_vas" placeholder="例: 15.0"></div>
+            <div class="input-group"><label>灵敏度 (dB/1W/1m) <span class="label-opt">[选填]</span></label><input type="number" id="ts_sens" placeholder="例: 88" step="0.5"></div>
         </div>
 
         <div class="btn-group">
-            <button class="btn-calc" onclick="calculate()">执行声学仿真与 DSP 计算</button>
-            <button class="btn-share" id="shareBtn" onclick="takeScreenshot()">📸 导出分析报告</button>
+            <button class="btn-calc" onclick="calculate()">执行工程计算</button>
+            <button class="btn-share" id="shareBtn" onclick="takeScreenshot()">保存诊断报告</button>
         </div>
 
         <div id="res" class="res">
-            <!-- 模块 1：Qtc声学响应 -->
-            <div id="qtc_eval" class="section"></div>
-
-            <!-- 模块 2：扬声器设计取向剖析 -->
-            <div id="intent_eval" class="section" style="border-left-color: #f1c40f;"></div>
-            
-            <!-- 模块 3：非对称 DSP 策略 -->
-            <div id="dsp_eval" class="section status-safe"></div>
-
-            <!-- 模块 4：系统综合诊断 -->
-            <div id="multi_eval" class="section" style="border-left-color: var(--neutral); border-left-width: 6px;">
-                <h4>系统综合诊断 <span class="tag">System Diagnostics</span></h4>
-                <div class="final-verdict" id="final_verdict_content"></div>
+            <div class="score-panel" id="score_panel">
+                <div class="score-val" id="score_val">--</div>
+                <div>
+                    <div class="score-desc-title" id="score_title">--</div>
+                    <div class="score-desc-text" id="score_desc">--</div>
+                </div>
             </div>
-            
-            <div class="watermark" id="watermark">
-                车载声学客观仿真引擎 | 导出于 <span id="date-time"></span>
+
+            <div class="data-grid">
+                <div class="data-box">
+                    <div class="data-label">基础总品质因数 (Q_ts)</div>
+                    <div class="data-value" id="out_qts">--</div>
+                    <span class="data-subtext">扬声器自由场本征参数</span>
+                </div>
+                <div class="data-box">
+                    <div class="data-label">效率带宽积 (EBP)</div>
+                    <div class="data-value" id="out_ebp">--</div>
+                    <span class="data-subtext">反映电磁阻尼对机械系统的控制力</span>
+                </div>
+                <div class="data-box">
+                    <div class="data-label">装车系统动态阻尼 (Q_sys)</div>
+                    <div class="data-value" id="out_qsys">--</div>
+                    <span class="data-subtext">车门容积与漏气系数介入后的实际阻尼</span>
+                </div>
+                <div class="data-box">
+                    <div class="data-label">装车物理衰减起点 (F_sys)</div>
+                    <div class="data-value"><span id="out_fsys">--</span> <span class="data-unit">Hz</span></div>
+                    <span class="data-subtext">决定声学交越边界的核心锚点</span>
+                </div>
             </div>
+
+            <div class="section-title">工程实战诊断报告</div>
+            <div class="diag-list" id="diag_content"></div>
+            
+            <div class="watermark" id="watermark">软件所有权：西安乐无间汽车音响 / 邓琰 | 诊断时间: <span id="date-time"></span></div>
         </div>
     </div>
 </div>
 
 <script>
-function toggleParamMode() {
-    const isKnown = document.querySelector('input[name="param_mode"]:checked').value === 'ts_known';
-    document.getElementById('panel_known').style.display = isKnown ? 'block' : 'none';
-    document.getElementById('panel_unknown').style.display = isKnown ? 'none' : 'block';
-}
-
-function toggleSubMode() {
-    const isAutotest = document.querySelector('input[name="unknown_submode"]:checked').value === 'autotest';
-    document.getElementById('panel_autotest').style.display = isAutotest ? 'block' : 'none';
-    document.getElementById('panel_deduce').style.display = isAutotest ? 'none' : 'block';
-}
-
 function calculate() {
-    const v_base = parseFloat(document.getElementById('car_type').value); 
-    const leak_factor = parseFloat(document.getElementById('door_treat').value);
-    const has_sub = document.getElementById('has_sub').value;
-
-    let fs, qts, vas = 15, xmax = 4.0;
-    let advice_items =[]; 
-    let bs_flag = false;   
-
-    const mode = document.querySelector('input[name="param_mode"]:checked').value;
+    const has_sub = document.getElementById('has_sub').value === 'true';
+    const v_b = parseFloat(document.getElementById('car_type').value);
+    const l_f = parseFloat(document.getElementById('door_treat').value);
     
-    // 参数获取逻辑
-    if (mode === 'ts_known') {
-        fs = parseFloat(document.getElementById('ts_fs').value);
-        qts = parseFloat(document.getElementById('ts_qts').value);
-        vas = parseFloat(document.getElementById('ts_vas').value) || 15;
-        if (isNaN(fs) || isNaN(qts)) { alert("请输入完整的 Fs 和 Qts"); return; }
-        xmax = (fs < 55) ? 6.0 : (fs > 85 ? 2.0 : 4.0);
-    } else {
-        const submode = document.querySelector('input[name="unknown_submode"]:checked').value;
-        if (submode === 'autotest') {
-            fs = parseFloat(document.getElementById('test_fs').value);
-            if (isNaN(fs)) { alert("请输入实测的 Fs"); return; }
-            const susp = document.getElementById('test_suspension').value;
-            qts = (susp === 'stiff') ? 0.8 : (susp === 'soft' ? 0.45 : 0.65);
-            xmax = (susp === 'soft') ? 6.0 : 4.0;
-        } else {
-            const f_nom = parseFloat(document.getElementById('deduce_freq').value) || 60;
-            const sens = parseFloat(document.getElementById('deduce_sens').value) || 89;
-            const susp = document.getElementById('deduce_suspension').value;
+    const fs = parseFloat(document.getElementById('ts_fs').value);
+    const qes = parseFloat(document.getElementById('ts_qes').value);
+    const qms = parseFloat(document.getElementById('ts_qms').value);
+    const vas = parseFloat(document.getElementById('ts_vas').value);
+    const sens_raw = document.getElementById('ts_sens').value;
+    const sens = sens_raw ? parseFloat(sens_raw) : null;
 
-            // 霍夫曼铁律排查：高灵敏度 + 极低潜 + 硬悬挂 = 物理悖论
-            if (sens >= 91 && f_nom < 45 && susp === 'stiff') {
-                bs_flag = true;
-                fs = 65; qts = 0.85; 
-                advice_items.push(`<span style="color:#e74c3c">⚠️ <b>霍夫曼铁律校验未通过：</b> 标称高灵敏度 (${sens}dB) 与极低潜 (${f_nom}Hz) 在悬挂偏硬的物理限制下不可兼得。已自动剔除理想化下潜参数，按常规高效率车门中低音 (估算 Fs=${fs}Hz) 进行客观推演。</span>`);
+    if (isNaN(fs) || isNaN(qes) || isNaN(qms) || isNaN(vas) || fs <= 0 || qes <= 0 || qms <= 0) {
+        alert("计算阻断：T/S 参数缺失或不符合物理逻辑，请提供准确的规格书数据。");
+        return;
+    }
+
+    const qts = (qes * qms) / (qes + qms);
+    const ebp = fs / qes;
+
+    const alpha = vas / v_b;
+    const sys_multiplier = Math.sqrt(1 + alpha * l_f);
+    const q_sys = qts * sys_multiplier;
+    const f_sys = fs * sys_multiplier;
+
+    let score = 100;
+    let diags = [];
+
+    // 【独立功率预警：灵敏度评估】(不计入耦合总分)
+    if (sens !== null) {
+        if (sens < 86) {
+            diags.push({level: 'danger', type: 'sens', text: `<strong>驱动力严重预警：</strong> 该单元标称灵敏度极低 (${sens}dB)，表明其机械振动系统较重。<strong>切勿使用原车主机直推！</strong> 必须搭配大功率/大电流功放伺候，否则大动态下将出现严重的声压压缩与失真。`});
+        } else if (sens >= 86 && sens <= 89) {
+            diags.push({level: 'info', type: 'sens', text: `<strong>常规驱动力需求：</strong> 灵敏度适中 (${sens}dB)。建议搭配额定功率 50W 以上的独立功放或高功率 DSP，以确保中低频的控制力与饱满度。`});
+        } else {
+            diags.push({level: 'pass', type: 'sens', text: `<strong>易驱动特征：</strong> 高灵敏度设计 (${sens}dB)。声能转换效率高，即便是原车主机或小功率 DSP 亦能推出合理的动态与微小细节。`});
+        }
+    }
+
+    // 【全局物理特征检验：EBP】
+    if (ebp < 50) {
+        score -= 25; // 阶梯扣分
+        diags.push({level: 'danger', type: 'ebp', text: `<strong>声学环境相斥：</strong> 该单元 EBP 偏低 (${Math.round(ebp)})，其悬挂设计强依赖密闭箱体内部的空气弹簧提供支撑。即便在门板做好高通保护，大动态下仍存在较高冲程失控(拍边)风险，不建议作为门板单元使用。`});
+    }
+
+    let f_sys_is_good = false;
+
+    if (has_sub) {
+        // ========== 分支 A：包含超低音 ==========
+        
+        // 阶梯式评估 F_sys
+        if (f_sys <= 75) {
+            f_sys_is_good = true;
+            diags.push({level: 'pass', type: 'fsys', text: `<strong>频率交越锚点达标：</strong> 物理滚降起点 (F_sys=${f_sys.toFixed(1)}Hz) 处于健康区间。在 DSP 设定 50-60Hz 适宜斜率的高通滤波时，可与扬声器的物理衰减产生良好的声学叠加，有利于将后备箱低音结像牵引至前声场。`});
+        } else if (f_sys <= 80) {
+            score -= 15;
+            f_sys_is_good = false;
+            diags.push({level: 'warn', type: 'fsys', text: `<strong>声学交越轻度错位：</strong> 装车后物理滚降起点略高 (F_sys=${f_sys.toFixed(1)}Hz)。50-70Hz 频段的基频支撑有所减弱，可能导致低音结像微弱后移，需精细调整 DSP 相位与斜率来弥补。`});
+        } else if (f_sys <= 85) {
+            score -= 30;
+            f_sys_is_good = false;
+            diags.push({level: 'warn', type: 'fsys', text: `<strong>声学交越盲区预警：</strong> 物理滚降起点偏高 (F_sys=${f_sys.toFixed(1)}Hz)。实战中若采用 50Hz 高通，扬声器在 50-80Hz 关键衔接段的物理响应已大幅衰减。实战影响：容易导致低频结像产生后移倾向，低音炮较难与前场实现无缝融合。`});
+        } else {
+            score -= 45;
+            f_sys_is_good = false;
+            diags.push({level: 'danger', type: 'fsys', text: `<strong>严重交越断层：</strong> F_sys 高达 ${f_sys.toFixed(1)}Hz，前声场彻底丧失 80Hz 以下基频支撑能力。与超低音衔接存在物理鸿沟，结像必然后移。`});
+        }
+
+        // 阶梯式评估 Q_sys (基于 F_sys 状态交叉验证)
+        if (q_sys > 1.1) {
+            score -= 45;
+            diags.push({level: 'danger', type: 'qsys', text: `<strong>严重欠阻尼特征：</strong> 系统阻尼过弱 (Q_sys=${q_sys.toFixed(2)})。将产生强烈的驻波轰鸣，严重掩盖人声基频并干扰低音炮相位。`});
+        } else if (q_sys > 1.05) {
+            score -= 20;
+            diags.push({level: 'warn', type: 'qsys', text: `<strong>驻波过载边界：</strong> 系统阻尼偏弱 (Q_sys=${q_sys.toFixed(2)})。中低频段 (80-120Hz) 易产生多余的驻波隆起，掩盖清晰度，且容易与超低音的泛音产生相位干涉。`});
+        } else if (q_sys < 0.65) {
+            score -= 30;
+            diags.push({level: 'warn', type: 'qsys', text: `<strong>过度阻尼/厚度极薄：</strong> Q 值过低 (Q_sys=${q_sys.toFixed(2)})，低频收发极快但滚降极其平缓。极度缺乏打击力，无法掩蔽后备箱低音炮的位置感。`});
+        } else if (q_sys < 0.75) {
+            score -= 15;
+            diags.push({level: 'info', type: 'qsys', text: `<strong>高阻尼/厚度偏薄：</strong> 系统 Q 值偏低，瞬态收发极快但中低频厚度相对偏薄。前门可能缺乏足够的打击力 (Punch) 作为掩体。`});
+        } else {
+            if (f_sys_is_good) {
+                diags.push({level: 'pass', type: 'qsys', text: `<strong>前场低频牵引力达标：</strong> 系统 Q 值落入实战补偿区间 (Q_sys=${q_sys.toFixed(2)})。结合良好的谐振点，系统在 60-80Hz 能提供扎实的打击力，可有效弥补高通滤波造成的能量流失，是拉升前场结像的优异物理基础。`});
             } else {
-                fs = Math.max(f_nom + 5, 40); // 预留厂家测试环境偏差容差
-                if (sens >= 90) {
-                    qts = (susp === 'stiff') ? 0.85 : (susp === 'soft' ? 0.65 : 0.75);
-                    xmax = (susp === 'soft') ? 5.0 : 3.5;
-                } else if (sens <= 87) {
-                    qts = (susp === 'stiff') ? 0.6 : (susp === 'soft' ? 0.45 : 0.55);
-                    xmax = (susp === 'soft') ? 8.0 : 6.0;
-                } else {
-                    qts = (susp === 'stiff') ? 0.75 : (susp === 'soft' ? 0.55 : 0.65);
-                    xmax = 4.5;
-                }
+                diags.push({level: 'info', type: 'qsys', text: `<strong>阻尼良好但频段错位：</strong> 虽然系统自身阻尼 (Q_sys=${q_sys.toFixed(2)}) 呈现健康的隆起形态，但由于谐振点偏高，这一物理厚度优势集中发生在中低频偏上区域，未能有效作用于 50-70Hz 的前场衔接关键区。`});
+            }
+        }
+
+    } else {
+        // ========== 分支 B：无超低音 ==========
+
+        // 阶梯式判定 F_sys
+        if (f_sys <= 65) {
+            f_sys_is_good = true;
+            diags.push({level: 'pass', type: 'fsys', text: `<strong>全频下潜基础达标：</strong> 物理衰减点 (F_sys=${f_sys.toFixed(1)}Hz) 具备较好的低频向下延伸能力，基本满足无超低音系统对低频氛围感的诉求。`});
+        } else if (f_sys <= 70) {
+            score -= 20;
+            f_sys_is_good = false;
+            diags.push({level: 'warn', type: 'fsys', text: `<strong>下潜深度受限：</strong> 衰减点 (F_sys=${f_sys.toFixed(1)}Hz) 偏高，缺乏 50Hz 以下的极低频下潜。整体声音可能显得不够深沉。`});
+        } else {
+            score -= 40;
+            f_sys_is_good = false;
+            diags.push({level: 'danger', type: 'fsys', text: `<strong>极低频物理缺失：</strong> 无超低音系统中，扬声器需承担全部低频重放。当前衰减点 (F_sys=${f_sys.toFixed(1)}Hz) 过高，物理上难以重现深沉低频。后期若用 DSP 强行提拉低频 EQ，易导致严重失真或损伤扬声器。`});
+        }
+
+        // 阶梯式评估 Q_sys
+        if (q_sys < 0.6) {
+            score -= 35;
+            diags.push({level: 'danger', type: 'qsys', text: `<strong>过度阻尼早衰：</strong> 控制力过强 (Q_sys=${q_sys.toFixed(2)})，低频区域提前大幅滚降。系统听感将呈现极其严重的“干瘪、偏瘦”特征。`});
+        } else if (q_sys < 0.65) {
+            score -= 20;
+            diags.push({level: 'warn', type: 'qsys', text: `<strong>过阻尼特征：</strong> 控制力较强 (Q_sys=${q_sys.toFixed(2)})，低频提前滚降。在无超低音补偿时，整体听感易呈现相对“偏瘦”的特征。`});
+        } else if (q_sys > 1.2) {
+            score -= 40;
+            diags.push({level: 'danger', type: 'qsys', text: `<strong>失控轰鸣特征：</strong> 门板容积与单元悬挂参数严重不匹配 (Q_sys=${q_sys.toFixed(2)})。将产生强烈的频响隆起，主观听感呈现低频极度不可控的浑浊与拖泥带水。`});
+        } else if (q_sys > 1.1) {
+            score -= 20;
+            diags.push({level: 'warn', type: 'qsys', text: `<strong>欠阻尼驻波：</strong> Q 值偏高 (Q_sys=${q_sys.toFixed(2)})，低频量感虽多但存在明显拖尾，容易轰头。`});
+        } else {
+            if (f_sys_is_good) {
+                diags.push({level: 'pass', type: 'qsys', text: `<strong>声学自补偿优异：</strong> 系统 Q 值为 ${q_sys.toFixed(2)}。巧妙利用了适度的欠阻尼特性，在低频滚降前进行了自然的声学补偿，为无炮系统提供了较丰满的低频厚度。`});
+            } else {
+                diags.push({level: 'info', type: 'qsys', text: `<strong>中低频丰满但缺乏极低：</strong> 虽然 Q 值 (${q_sys.toFixed(2)}) 提供了不错的中低频厚度，但受限于较高的滚降起点，这种厚度感无法替代 50Hz 以下深沉低频带来的下潜体验。`});
             }
         }
     }
 
-    // --- 物理装车声学推演 (Lossy Baffle 模型) ---
-    const alpha = vas / v_base;
-    let qtc, fc;
-    if (leak_factor >= 0.95) { 
-        qtc = qts * Math.sqrt(1 + alpha);
-    } else { 
-        qtc = qts * Math.sqrt(1 + alpha * leak_factor); 
-    }
-    fc = fs * (qtc / qts);
+    score = Math.max(0, Math.min(100, Math.round(score)));
     
-    let peak_db = 0;
-    if (qtc > 0.707) {
-        let q_sq = qtc * qtc;
-        peak_db = 20 * Math.log10(q_sq / Math.sqrt(q_sq - 0.5));
-    }
-
-    let f_cancel = (leak_factor === 0.4) ? 80 : (leak_factor === 0.75 ? 40 : 0);
-
-    // --- 显示控制 ---
     document.getElementById('res').style.display = 'block';
     document.getElementById('shareBtn').style.display = 'block';
     document.getElementById('watermark').style.display = 'block';
-    document.getElementById('date-time').innerText = new Date().toLocaleString();
+    
+    const now = new Date();
+    document.getElementById('date-time').innerText = 
+        `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
-    // --- 模块 2：设计架构意图识别 ---
-    let intent_mech = "", intent_app = "";
-    let is_free_air = false;
+    document.getElementById('out_qts').innerText = qts.toFixed(2);
+    document.getElementById('out_ebp').innerText = Math.round(ebp);
+    
+    const qColor = (q_sys < 0.65 || q_sys > 1.1) ? 'var(--warn)' : '#fff';
+    document.getElementById('out_qsys').innerText = q_sys.toFixed(2);
+    document.getElementById('out_qsys').style.color = qColor;
+    document.getElementById('out_fsys').innerText = f_sys.toFixed(1);
 
-    if (fs <= 55 && qts >= 0.8) {
-        is_free_air = true;
-        intent_mech = "较低谐振频率 (Fs) 配合 较高总品质因数 (Qts)。";
-        intent_app = "典型的 <b>Free-Air (无限大障板) 取向设计</b>。设计师特意利用较高的 Qts 来维持喇叭在漏气车门环境中的低频下潜能力，不依赖密闭箱体的空气弹簧。适合直接利用原车门容积发挥作用。";
-    } else if (fs >= 65 && fs <= 85 && qts > 0.6) {
-        intent_mech = "较高谐振频率 配合 适中机械阻尼。";
-        intent_app = "<b>高效率中低音取向</b>。在工程学上适当牺牲极低频下潜，换取 80-150Hz 频段优秀的瞬态响应与打击力，建议必须搭配独立超低音弥补下盘。";
-    } else if (qts <= 0.55 && fs < 55) {
-        intent_mech = "强电磁控制力 配合 高顺性(偏软)折环。";
-        intent_app = "<b>密闭箱/倒相箱取向单元</b>。极度依赖箱体空气弹簧提供支撑力。若强行安装在未完全密封的车门中，低频量感可能偏少，且在大动态下容易出现冲程过载。";
-    } else if (fs > 85) {
-        intent_mech = "轻量化振膜 配合 短冲程结构。";
-        intent_app = "<b>纯中音或阵列单元</b>。主要负责中频人声表现，低频能力极弱，需设定较高的高通分频点。";
+    let sColor = "", sTitle = "", sDesc = "";
+    if (score >= 85) {
+        sColor = "var(--pass)"; sTitle = "高匹配度 (架构协同)";
+        sDesc = "机电参数与门板声学边界高度契合。实战中可提供优异的频率交越基础，有利于构建准确的声场与频段融合。";
+    } else if (score >= 60) {
+        sColor = "var(--warn)"; sTitle = "中等匹配 (存在妥协)";
+        sDesc = "物理架构存在一定偏差。装车后可能在频段衔接或声场定位上出现物理妥协，需依赖 DSP 精细干预或隔音加强以弥补短板。";
     } else {
-        intent_mech = "常规冲程与适中的阻尼参数特性。";
-        intent_app = "<b>通用型车门中低音单元</b>。兼顾人声表现与基础低频氛围，对常规安装环境的适应性广，容差率较高。";
+        sColor = "var(--danger)"; sTitle = "严重错配 (工程风险)";
+        sDesc = "该扬声器的物理边界与当前系统架构存在核心冲突。电子调试极难突破此先天物理局限，强行调试可能引发工况异常。";
     }
 
-    // --- 模块 1：系统声学阻尼判定 ---
-    let q_class = "", q_title = "";
-    if (is_free_air) {
-        q_class = "status-safe"; 
-        q_title = "符合无限大障板 (IB) 设计预期，利用自身阻尼维持低频量感。";
-    } else {
-        if (qtc < 0.6) { q_class = "status-warn"; q_title = "轻度过阻尼 (瞬态响应干净，但低频量感可能偏薄)"; } 
-        else if (qtc >= 0.6 && qtc <= 0.85) { q_class = "status-safe"; q_title = "阻尼适中 (系统瞬态与低频量感取得较佳平衡)"; } 
-        else if (qtc <= 1.1) { q_class = "status-warn"; q_title = "轻度欠阻尼 (低频量感丰满，迎合流行听音喜好)"; } 
-        else { q_class = "status-danger"; q_title = "显著欠阻尼 (低频能量累积较强，需注意中低频浑浊问题)"; }
-    }
+    const panel = document.getElementById('score_panel');
+    panel.style.borderColor = sColor;
+    document.getElementById('score_val').innerText = score;
+    document.getElementById('score_val').style.color = sColor;
+    document.getElementById('score_title').innerText = sTitle;
+    document.getElementById('score_title').style.color = sColor;
+    document.getElementById('score_desc').innerText = sDesc;
 
-    document.getElementById('qtc_eval').className = "section " + q_class;
-    document.getElementById('qtc_eval').innerHTML = `
-        <h4>装车声学阻尼估算 (System Qtc) <span class="tag">Physics Output</span></h4>
-        <div class="data-row">
-            <div class="main-val" style="color:${q_class === 'status-safe' ? '#27ae60' : (q_class === 'status-warn' ? '#f39c12' : '#c0392b')}">Qtc ≈ ${qtc.toFixed(2)}</div>
-            <div class="sub-data">
-                估算装车谐振 (Fc): <b>${Math.round(fc)} Hz</b>
+    const dContent = document.getElementById('diag_content');
+    dContent.innerHTML = "";
+    diags.forEach(d => {
+        let bg, col, icon, rawBg;
+        if (d.level === 'danger') { rawBg = 'rgba(192, 57, 43, 0.2)'; col = 'var(--danger)'; icon = '工程风险'; }
+        else if (d.level === 'warn') { rawBg = 'rgba(243, 156, 18, 0.2)'; col = 'var(--warn)'; icon = '实战妥协'; }
+        else if (d.level === 'pass') { rawBg = 'rgba(39, 174, 96, 0.2)'; col = 'var(--pass)'; icon = '物理达标'; }
+        else { rawBg = 'rgba(52, 152, 219, 0.2)'; col = 'var(--highlight)'; icon = '系统特征'; }
+        
+        dContent.innerHTML += `
+            <div class="diag-item" data-level="${d.level}" style="background:${rawBg}; padding:15px; border-radius:4px; margin-bottom:15px; border-bottom:none; border-left: 3px solid ${col};">
+                <div class="d-icon" style="color:${col}; margin-right: 15px; min-width: 65px; text-align:center;">[${icon}]</div>
+                <div class="d-text" style="color:#d1d8e0;">${d.text}</div>
             </div>
-        </div>
-        ${peak_db > 0 ? `<div style="font-size:0.85rem; margin-top:5px; text-align:right; color:#a4b0be;">推演共振增益：系统将在 ${Math.round(fc)}Hz 附近产生约 <b>+${peak_db.toFixed(1)} dB</b> 的自然物理增益。</div>` : ''}
-        <div class="da-desc" style="color:#ecf0f1; font-weight:bold; margin-top:8px;">工程判定：${q_title}</div>
-    `;
-
-    document.getElementById('intent_eval').innerHTML = `
-        <h4>扬声器设计取向剖析 <span class="tag">Architecture Intent</span></h4>
-        <div class="intent-grid">
-            <div class="intent-item">
-                <div class="intent-title">⚙️ 参数特征推演</div>
-                <div class="intent-desc">${intent_mech} (基础推测: Fs≈${Math.round(fs)}Hz / Qts≈${qts.toFixed(2)})</div>
-            </div>
-            <div class="intent-item">
-                <div class="intent-title">🎯 最佳工程应用场景</div>
-                <div class="intent-desc">${intent_app}</div>
-            </div>
-        </div>
-    `;
-
-    // --- 模块 3：非对称 DSP 策略 (基于用户工程实践) ---
-    let hpf_freq = 50, hpf_slope = "12dB/Oct Butterworth";
-    let lpf_freq = 60, lpf_slope = "24dB/Oct Butterworth";
-    let dsp_rationale = "";
-
-    if (fc <= 75 && xmax >= 3.5) {
-        dsp_rationale = `💡 <b>非对称声学对齐策略 (基础推荐基准)：</b><br>
-        1. <b>声学斜率融合：</b> 车门中低音在物理环境中存在自然的低频滚降 (通常约为 12dB/Oct)。叠加 <b>12dB/Oct 电学高通 (50Hz)</b> 后，可近似形成 <b>24dB/Oct 的总声学滚降</b>。<br>
-        2. <b>相位同向对接：</b> 此策略使前门与超低音 (设置 <b>24dB/Oct 电学低通 60Hz</b>) 在交接区实现近似 Linkwitz-Riley (LR4) 的对称匹配，理论上能达成优秀的相位同向衔接。<br>
-        3. <b>频率重叠 (Overlap)：</b> 50Hz(HP) 与 60Hz(LP) 的电学重叠设置，有助于弥补车厢声学环境导致的交接点能量陷阱。`;
-    } else {
-        hpf_freq = Math.max(60, Math.round(fc * 1.1));
-        hpf_slope = "12dB/Oct 或 24dB/Oct";
-        lpf_freq = Math.min(80, hpf_freq + 10);
-        dsp_rationale = `📌 <b>防衰减与冲程保护策略：</b><br>
-        因该单元装车谐振偏高或冲程物理限制，为防止扬声器过载失真，高通建议设定在 <b>${hpf_freq}Hz</b> 附近。<br>
-        同时将超低音的低通相应上移至 <b>${lpf_freq}Hz</b> 以防中低频段能量断层。注意：低通频率过高可能会引发声像后移，请依据实际听感微调低音炮电平。`;
-    }
-
-    document.getElementById('dsp_eval').innerHTML = `
-        <h4>DSP 声学与电学对齐参考 <span class="tag">Acoustic Alignment</span></h4>
-        <div class="dual-advice">
-            <div class="da-card" style="border-top-color:#3498db;">
-                <div class="da-title">中低音 HPF (低频切除)</div>
-                <div class="da-val" style="color:#3498db">${hpf_freq} Hz</div>
-                <div style="font-size:0.8rem;color:#888;">${hpf_slope}</div>
-            </div>
-            <div class="da-card" style="border-top-color:${has_sub === 'yes' ? '#e67e22' : '#7f8c8d'};">
-                <div class="da-title">超低音 LPF (高频切除)</div>
-                <div class="da-val" style="color:${has_sub === 'yes' ? '#e67e22' : '#7f8c8d'}">${has_sub === 'yes' ? lpf_freq + ' Hz' : '无独立超低音'}</div>
-                <div style="font-size:0.8rem;color:#888;">${has_sub === 'yes' ? lpf_slope : 'N/A'}</div>
-            </div>
-        </div>
-        <div class="da-desc" style="margin-top:12px;">${dsp_rationale}</div>
-    `;
-
-    // --- 模块 4：系统综合诊断 ---
-    if (is_free_air && qtc > 1.0) {
-        advice_items.push(`✅ <b>设计特性匹配：</b> 该单元利用高 Qts 在开放空间获取低频，估算的较高 Qtc 属正常工程预期。${peak_db > 0 ? `若实际听感认为 ${Math.round(fc)}Hz 附近略显厚重，可通过 DSP 均衡器作 -2 至 -3dB 的轻微压降。` : ''}`);
-    } else if (!is_free_air) {
-        if (qtc < 0.6) {
-            advice_items.push(`ℹ️ <b>阻尼偏高提示：</b> 系统呈轻度过阻尼状态，低频瞬态清晰但下潜听感可能偏薄。若需增加氛围感，可适当增加超低音增益或辅以适度的 EQ 补偿。`);
-        } else if (qtc > 1.2) {
-            advice_items.push(`⚠️ <b>欠阻尼留意：</b> Qtc 高达 ${qtc.toFixed(2)}，可能产生较明显的低频驻波或拖尾感。建议利用 DSP 参数均衡器 (PEQ) 在 ${Math.round(fc)}Hz 附近进行适度衰减控制。`);
-        }
-    }
-
-    if (f_cancel >= hpf_freq) {
-        advice_items.push(`⚠️ <b>车门隔音建议：</b> 当前隔音状态可能在 ${f_cancel}Hz 附近引发明显的前后声波短路抵消。建议后期加强门板内层钣金的刚性与密封处理。`);
-    }
-
-    if (has_sub === 'no') {
-        advice_items.push(`ℹ️ <b>低频延伸受限：</b> 系统无独立超低音，整车极低频段 (20-${hpf_freq}Hz) 的物理回放能力受限。请勿尝试使用 EQ 强行拔高中低音的极低频段，以免引起扬声器冲程过载拍底。`);
-    }
-
-    if (advice_items.length === 0 && !bs_flag) {
-        advice_items.push(`✅ <b>系统匹配合理：</b> 当前输入的电声参数与环境设置均处于合理的工程常规区间。可作为基准参考执行调音。`);
-    }
-
-    document.getElementById('final_verdict_content').innerHTML = advice_items.map(item => `<div class="verdict-item"><div class="verdict-icon">📌</div><div>${item}</div></div>`).join('');
+        `;
+    });
 }
 
+// 修复字体发暗的截图函数
 function takeScreenshot() {
     const target = document.getElementById("capture-target");
     const btns = document.querySelector('.btn-group');
-    btns.style.display = 'none'; 
-    html2canvas(target, { backgroundColor: "#0f1419", scale: 2 }).then(canvas => {
-        btns.style.display = 'grid'; 
+    const items = document.querySelectorAll('.diag-item');
+    const texts = document.querySelectorAll('.d-text');
+    
+    // 截图前：隐藏按钮，替换透明背景为纯色，文字设为纯白
+    btns.style.display = 'none';
+    items.forEach(item => {
+        let level = item.getAttribute('data-level');
+        if(level === 'danger') item.style.background = 'var(--bg-danger-solid)';
+        else if(level === 'warn') item.style.background = 'var(--bg-warn-solid)';
+        else if(level === 'pass') item.style.background = 'var(--bg-pass-solid)';
+        else item.style.background = 'var(--bg-info-solid)';
+    });
+    texts.forEach(t => t.style.color = '#ffffff');
+
+    html2canvas(target, { backgroundColor: "#080a0c", scale: 2, logging: false }).then(canvas => {
+        // 截图后：瞬间恢复原始样式
+        btns.style.display = 'flex';
+        items.forEach(item => {
+            let level = item.getAttribute('data-level');
+            if(level === 'danger') item.style.background = 'rgba(192, 57, 43, 0.2)';
+            else if(level === 'warn') item.style.background = 'rgba(243, 156, 18, 0.2)';
+            else if(level === 'pass') item.style.background = 'rgba(39, 174, 96, 0.2)';
+            else item.style.background = 'rgba(52, 152, 219, 0.2)';
+        });
+        texts.forEach(t => t.style.color = '#d1d8e0');
+
         const link = document.createElement('a');
-        link.download = `车载低频仿真分析报告_${new Date().toISOString().slice(0,10)}.png`;
+        link.download = `车载适配分析报告_${new Date().toISOString().slice(0,10)}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
     });
